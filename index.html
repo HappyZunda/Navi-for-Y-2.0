@@ -9,12 +9,12 @@
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f0f2f5; color: #1c1e21; margin: 0; padding: 20px; display: flex; justify-content: center; }
         .container { max-width: 600px; width: 100%; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
         h1 { font-size: 24px; text-align: center; margin-bottom: 20px; }
-        textarea { width: calc(100% - 22px); height: 120px; padding: 10px; border: 1px solid #dddfe2; border-radius: 6px; font-size: 16px; margin-bottom: 10px; }
+        label { font-weight: bold; font-size: 16px; display: block; margin-bottom: 5px; }
+        input[type="text"], textarea { width: calc(100% - 22px); padding: 10px; border: 1px solid #dddfe2; border-radius: 6px; font-size: 16px; margin-bottom: 15px; }
         button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; }
         #result { margin-top: 20px; }
         #result_label { font-weight: bold; margin-bottom: 5px; display: block; }
         #result_link { width: 100%; box-sizing: border-box; padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; background-color: #f8f8f8; }
-        small { display: block; text-align: center; margin-top: 15px; color: #606770; }
         .ref-point { border: 1px solid #007bff; border-radius: 8px; padding: 10px; margin-top: 15px; background-color: #f0f8ff; }
         .ref-point label { font-weight: bold; font-size: 14px; display: block; margin-bottom: 5px; }
         .ref-point input { width: calc(50% - 15px); padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
@@ -24,9 +24,15 @@
 </head>
 <body>
     <div class="container">
-        <h1>Yahoo!カーナビ<br>リンク生成ツール_v4</h1>
-        <textarea id="locations" placeholder="GoogleマップのリンクやPlus Codeを1行に1つずつ入力してください。"></textarea>
-        
+        <h1>Yahoo!カーナビ<br>リンク生成ツール</h1>
+
+        <div id="form-group">
+            <label for="destination">目的地 (必須)</label>
+            <input type="text" id="destination" placeholder="リンク、Plus Code、または住所を入力">
+
+            <label for="waypoints">経由地 (任意、3つまで)</label>
+            <textarea id="waypoints" rows="3" placeholder="1行に1つずつ入力"></textarea>
+        </div>
         <div class="ref-point">
             <label for="refLat">ショートコード用の基準点 (任意)</label>
             <input type="text" id="refLat" placeholder="基準点の緯度 (例: 35.68)">
@@ -42,73 +48,101 @@
                 <button id="copyButton">リンクをコピー</button>
                 <button id="shareButton" style="display: none;">共有する</button>
             </div>
-            </div>
-        <small>最終行が目的地になります。</small>
+        </div>
     </div>
 
     <script>
+        function parseLocation(line, refLat, refLon) {
+            line = line.trim();
+            if (!line) return null;
+
+            // GoogleマップのURL
+            const gmapMatch = line.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+            if (gmapMatch) {
+                return { lat: gmapMatch[1], lon: gmapMatch[2] };
+            }
+
+            // Plus Code
+            try {
+                if (OpenLocationCode.isFull(line)) {
+                    const decoded = OpenLocationCode.decode(line);
+                    return { lat: decoded.latitudeCenter, lon: decoded.longitudeCenter };
+                }
+                const shortCodeMatch = line.match(/^[2-9CFGHJMPQRVWX]{4,}\+[2-9CFGHJMPQRVWX]{2,}/);
+                if (shortCodeMatch) {
+                    const shortCode = shortCodeMatch[0];
+                    if (isNaN(refLat) || isNaN(refLon)) {
+                        alert("ショートコード「" + shortCode + "」を変換するには、有効な基準点の緯度と経度を入力してください。");
+                        return 'error'; // エラーを明確に識別
+                    }
+                    const recovered = OpenLocationCode.recoverNearest(shortCode, refLat, refLon);
+                    const decoded = OpenLocationCode.decode(recovered);
+                    return { lat: decoded.latitudeCenter, lon: decoded.longitudeCenter };
+                }
+            } catch (e) {
+                return null;
+            }
+            
+            // 上記のどれでもない場合は、ジオコーディングAPIが必要な住所文字列と見なす
+            // 今回は未対応なのでエラーとする
+            alert("「" + line + "」は解析できない形式です。GoogleマップのリンクかPlus Codeを入力してください。");
+            return 'error';
+        }
+
         function generateLink() {
-            // ... (これまでの緯度経度を変換するコードは変更なし) ...
-            const inputText = document.getElementById('locations').value.trim();
+            const destinationText = document.getElementById('destination').value.trim();
+            const waypointsText = document.getElementById('waypoints').value.trim();
             const refLat = parseFloat(document.getElementById('refLat').value);
             const refLon = parseFloat(document.getElementById('refLon').value);
-            const lines = inputText.split('\n').filter(line => line.trim() !== '');
-            if (lines.length === 0) { alert("場所を入力してください。"); return; }
-            const coords = lines.map(line => {
-                line = line.trim();
-                const gmapMatch = line.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-                if (gmapMatch) { return { lat: gmapMatch[1], lon: gmapMatch[2] }; }
-                try {
-                    if (OpenLocationCode.isFull(line)) { const decoded = OpenLocationCode.decode(line); return { lat: decoded.latitudeCenter, lon: decoded.longitudeCenter }; }
-                    const shortCodeMatch = line.match(/^[2-9CFGHJMPQRVWX]{4,}\+[2-9CFGHJMPQRVWX]{2,}/);
-                    if (shortCodeMatch) {
-                        const shortCode = shortCodeMatch[0];
-                        if (isNaN(refLat) || isNaN(refLon)) { alert("ショートコードを変換するには、有効な基準点の緯度と経度を入力してください。"); return null; }
-                        const recovered = OpenLocationCode.recoverNearest(shortCode, refLat, refLon);
-                        const decoded = OpenLocationCode.decode(recovered);
-                        return { lat: decoded.latitudeCenter, lon: decoded.longitudeCenter };
-                    }
-                } catch (e) { return null; }
-                return null;
-            });
-            if (coords.some(c => c === null)) { return; }
-            if (coords.length === 0) return;
+            
+            if (!destinationText) {
+                alert("目的地を必ず入力してください。");
+                return;
+            }
+
+            // 経由地と目的地を一つの配列にまとめる（目的地が最後）
+            const waypointLines = waypointsText ? waypointsText.split('\n').filter(line => line.trim() !== '') : [];
+            const allLocationLines = [...waypointLines, destinationText];
+            
+            let coords = [];
+            for (const line of allLocationLines) {
+                const result = parseLocation(line, refLat, refLon);
+                if (result === 'error') return; // 解析エラーが出たら中断
+                if (result) coords.push(result);
+            }
+
+            if (coords.length !== allLocationLines.length) {
+                // このケースはparseLocation内のアラートで処理される
+                return;
+            }
+            
             let yahooNaviUrl = "yjcarnavi://navi/select?point=current";
-            coords.forEach(coord => { yahooNaviUrl += `&point=${coord.lat},${coord.lon}`; });
+            coords.forEach(coord => {
+                yahooNaviUrl += `&point=${coord.lat},${coord.lon}`;
+            });
 
-            // --- ここからが変更部分です ---
-
-            // 1. 結果表示エリアの準備
+            // 結果表示と共有ボタンのロジック (変更なし)
             const resultDiv = document.getElementById('result');
             const resultLinkTextarea = document.getElementById('result_link');
-            resultLinkTextarea.value = yahooNaviUrl; // テキストエリアにURLを設定
-            resultDiv.style.display = 'block'; // 結果エリア全体を表示
-
-            // 2. 「コピー」ボタンの設定
+            resultLinkTextarea.value = yahooNaviUrl;
+            resultDiv.style.display = 'block';
             const copyButton = document.getElementById('copyButton');
-            copyButton.textContent = 'リンクをコピー'; // ボタンの文字を初期状態に戻す
+            copyButton.textContent = 'リンクをコピー';
             copyButton.onclick = function() {
-                navigator.clipboard.writeText(yahooNaviUrl).then(function() {
-                    copyButton.textContent = 'コピーしました！'; // 成功したら文字を変更
-                    setTimeout(() => { copyButton.textContent = 'リンクをコピー'; }, 2000); // 2秒後に戻す
-                }, function() {
-                    alert('コピーに失敗しました。'); // 失敗した場合
-                });
+                navigator.clipboard.writeText(yahooNaviUrl).then(() => {
+                    copyButton.textContent = 'コピーしました！';
+                    setTimeout(() => { copyButton.textContent = 'リンクをコピー'; }, 2000);
+                }, () => { alert('コピーに失敗しました。'); });
             };
-
-            // 3. 「共有」ボタンの設定 (スマホなど対応ブラウザのみ)
             const shareButton = document.getElementById('shareButton');
             if (navigator.share) {
-                shareButton.style.display = 'block'; // 対応していればボタンを表示
+                shareButton.style.display = 'block';
                 shareButton.onclick = function() {
-                    navigator.share({
-                        title: 'Yahoo!カーナビ 経路リンク',
-                        text: yahooNaviUrl,
-                    })
+                    navigator.share({ title: 'Yahoo!カーナビ 経路リンク', text: yahooNaviUrl })
                     .catch(error => console.log('共有がキャンセルされました', error));
                 };
             } else {
-                shareButton.style.display = 'none'; // 非対応ならボタンを隠す
+                shareButton.style.display = 'none';
             }
         }
     </script>
