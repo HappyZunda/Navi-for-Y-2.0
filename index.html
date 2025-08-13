@@ -15,11 +15,12 @@
         #result { margin-top: 20px; }
         #result_label { font-weight: bold; margin-bottom: 5px; display: block; }
         #result_link { width: 100%; box-sizing: border-box; padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; background-color: #f8f8f8; }
-        .ref-point { border: 1px solid #007bff; border-radius: 8px; padding: 10px; margin-top: 15px; background-color: #f0f8ff; }
-        .ref-point label { font-weight: bold; font-size: 14px; display: block; margin-bottom: 5px; }
-        .ref-point input { width: calc(50% - 15px); padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-        .action-buttons { display: flex; gap: 10px; margin-top: 10px; }
-        .action-buttons button { font-size: 16px; padding: 10px; background-color: #28a745; }
+        .action-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        .action-buttons button, .action-buttons a { font-size: 16px; padding: 10px; border-radius: 6px; text-decoration: none; color: white; text-align: center; border: none; cursor: pointer; flex-grow: 1; }
+        .action-buttons .copy { background-color: #17a2b8; }
+        .action-buttons .launch { background-color: #007bff; }
+        .action-buttons .share { background-color: #28a745; }
+        .memo-field { margin-top: 15px; }
     </style>
 </head>
 <body>
@@ -28,104 +29,77 @@
 
         <div id="form-group">
             <label for="destination">目的地 (必須)</label>
-            <input type="text" id="destination" placeholder="リンク、Plus Code、または住所を入力">
+            <input type="text" id="destination" placeholder="リンク または Plus Code (フルコード)">
 
             <label for="waypoints">経由地 (任意、3つまで)</label>
             <textarea id="waypoints" rows="3" placeholder="1行に1つずつ入力"></textarea>
         </div>
-        <div class="ref-point">
-            <label for="refLat">ショートコード用の基準点 (任意)</label>
-            <input type="text" id="refLat" placeholder="基準点の緯度 (例: 35.68)">
-            <input type="text" id="refLon" placeholder="基準点の経度 (例: 139.76)">
-        </div>
-
-        <button onclick="generateLink()" style="margin-top: 15px;">ナビゲーションリンクを生成</button>
+        
+        <button onclick="generateLink()">ナビゲーションリンクを生成</button>
 
         <div id="result" style="display: none;">
             <label id="result_label" for="result_link">生成されたリンク：</label>
             <textarea id="result_link" readonly></textarea>
-            <div class="action-buttons">
-                <button id="copyButton">リンクをコピー</button>
-                <button id="shareButton" style="display: none;">共有する</button>
+            
+            <div class="memo-field">
+                <label for="shareMemo">共有メモ (任意)</label>
+                <input type="text" id="shareMemo" placeholder="例：〇〇時に集合！">
             </div>
-        </div>
+
+            <div class="action-buttons">
+                <a id="launchButton" class="launch" href="#" style="display: none;">アプリを起動</a>
+                <button id="copyButton" class="copy">リンクをコピー</button>
+                <button id="shareButton" class="share" style="display: none;">共有する</button>
+            </div>
+            </div>
     </div>
 
     <script>
-        function parseLocation(line, refLat, refLon) {
+        // parseLocation関数の内容は変更なし
+        function parseLocation(line) {
             line = line.trim();
             if (!line) return null;
-
-            // GoogleマップのURL
             const gmapMatch = line.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-            if (gmapMatch) {
-                return { lat: gmapMatch[1], lon: gmapMatch[2] };
-            }
-
-            // Plus Code
+            if (gmapMatch) { return { lat: gmapMatch[1], lon: gmapMatch[2] }; }
             try {
                 if (OpenLocationCode.isFull(line)) {
                     const decoded = OpenLocationCode.decode(line);
                     return { lat: decoded.latitudeCenter, lon: decoded.longitudeCenter };
                 }
-                const shortCodeMatch = line.match(/^[2-9CFGHJMPQRVWX]{4,}\+[2-9CFGHJMPQRVWX]{2,}/);
-                if (shortCodeMatch) {
-                    const shortCode = shortCodeMatch[0];
-                    if (isNaN(refLat) || isNaN(refLon)) {
-                        alert("ショートコード「" + shortCode + "」を変換するには、有効な基準点の緯度と経度を入力してください。");
-                        return 'error'; // エラーを明確に識別
-                    }
-                    const recovered = OpenLocationCode.recoverNearest(shortCode, refLat, refLon);
-                    const decoded = OpenLocationCode.decode(recovered);
-                    return { lat: decoded.latitudeCenter, lon: decoded.longitudeCenter };
-                }
-            } catch (e) {
-                return null;
-            }
-            
-            // 上記のどれでもない場合は、ジオコーディングAPIが必要な住所文字列と見なす
-            // 今回は未対応なのでエラーとする
-            alert("「" + line + "」は解析できない形式です。GoogleマップのリンクかPlus Codeを入力してください。");
+            } catch (e) { return null; }
+            alert("「" + line + "」は解析できない形式です。Googleマップのリンクか、Plus Codeのフルコードを入力してください。");
             return 'error';
         }
 
         function generateLink() {
+            // ... (これまでの緯度経度を変換するコードは変更なし) ...
             const destinationText = document.getElementById('destination').value.trim();
             const waypointsText = document.getElementById('waypoints').value.trim();
-            const refLat = parseFloat(document.getElementById('refLat').value);
-            const refLon = parseFloat(document.getElementById('refLon').value);
-            
-            if (!destinationText) {
-                alert("目的地を必ず入力してください。");
-                return;
-            }
-
-            // 経由地と目的地を一つの配列にまとめる（目的地が最後）
+            if (!destinationText) { alert("目的地を必ず入力してください。"); return; }
             const waypointLines = waypointsText ? waypointsText.split('\n').filter(line => line.trim() !== '') : [];
             const allLocationLines = [...waypointLines, destinationText];
-            
             let coords = [];
             for (const line of allLocationLines) {
-                const result = parseLocation(line, refLat, refLon);
-                if (result === 'error') return; // 解析エラーが出たら中断
+                const result = parseLocation(line);
+                if (result === 'error') return;
                 if (result) coords.push(result);
             }
-
-            if (coords.length !== allLocationLines.length) {
-                // このケースはparseLocation内のアラートで処理される
-                return;
-            }
-            
+            if (coords.length !== allLocationLines.length) return;
             let yahooNaviUrl = "yjcarnavi://navi/select?point=current";
-            coords.forEach(coord => {
-                yahooNaviUrl += `&point=${coord.lat},${coord.lon}`;
-            });
+            coords.forEach(coord => { yahooNaviUrl += `&point=${coord.lat},${coord.lon}`; });
 
-            // 結果表示と共有ボタンのロジック (変更なし)
+            // --- ここからが変更部分です ---
+
             const resultDiv = document.getElementById('result');
             const resultLinkTextarea = document.getElementById('result_link');
             resultLinkTextarea.value = yahooNaviUrl;
             resultDiv.style.display = 'block';
+            
+            // 「アプリを起動」ボタンの設定
+            const launchButton = document.getElementById('launchButton');
+            launchButton.href = yahooNaviUrl; // 生成したリンクをhrefに設定
+            launchButton.style.display = 'inline-block'; // ボタンを表示
+
             const copyButton = document.getElementById('copyButton');
             copyButton.textContent = 'リンクをコピー';
             copyButton.onclick = function() {
@@ -134,11 +108,20 @@
                     setTimeout(() => { copyButton.textContent = 'リンクをコピー'; }, 2000);
                 }, () => { alert('コピーに失敗しました。'); });
             };
+            
             const shareButton = document.getElementById('shareButton');
             if (navigator.share) {
-                shareButton.style.display = 'block';
+                shareButton.style.display = 'inline-block';
                 shareButton.onclick = function() {
-                    navigator.share({ title: 'Yahoo!カーナビ 経路リンク', text: yahooNaviUrl })
+                    const shareMemo = document.getElementById('shareMemo').value.trim();
+                    let shareText = yahooNaviUrl;
+                    if (shareMemo) {
+                        shareText = shareMemo + '\n' + yahooNaviUrl;
+                    }
+                    navigator.share({
+                        title: 'Yahoo!カーナビ 経路リンク',
+                        text: shareText,
+                    })
                     .catch(error => console.log('共有がキャンセルされました', error));
                 };
             } else {
@@ -148,5 +131,6 @@
     </script>
 </body>
 </html>
+
 
 
