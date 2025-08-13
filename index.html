@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yahoo!カーナビ リンク生成ツール</title>
+    <script src="https://cdn.jsdelivr.net/npm/open-location-code@1.0.3/openlocationcode.min.js"></script>
+    <style>
+        /* 見た目を整えるCSS */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #1c1e21;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            font-size: 24px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        textarea {
+            width: calc(100% - 20px);
+            height: 150px;
+            padding: 10px;
+            border: 1px solid #dddfe2;
+            border-radius: 6px;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e9f5ff;
+            border: 1px solid #b3d7ff;
+            border-radius: 6px;
+            text-align: center;
+            word-wrap: break-word; /* 長いURLを折り返す */
+        }
+        #result a {
+            color: #007bff;
+            font-weight: bold;
+            font-size: 18px;
+            text-decoration: none;
+        }
+        small {
+            display: block;
+            text-align: center;
+            margin-top: 15px;
+            color: #606770;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Yahoo!カーナビ<br>リンク生成ツール</h1>
+        <textarea id="locations" placeholder="GoogleマップのリンクやPlus Codeを1行に1つずつ入力してください。
+
+例1 (経由地): 東京タワーのPlus Code
+MQPQ+CH 千代田区、東京都
+
+例2 (目的地): 東京駅のGoogleマップリンク
+https://www.google.com/maps/place/東京タワー/@**35.6585805,139.7432442**,17z/"></textarea>
+        <button onclick="generateLink()">ナビゲーションリンクを生成</button>
+        <div id="result" style="display: none;"></div>
+        <small>最終行が目的地になります。</small>
+    </div>
+
+    <script>
+        // 機能の本体となるJavaScript
+        function generateLink() {
+            const inputText = document.getElementById('locations').value.trim();
+            const lines = inputText.split('\n').filter(line => line.trim() !== ''); // 空行を無視
+
+            if (lines.length === 0) {
+                alert("場所を入力してください。");
+                return;
+            }
+
+            // 各行を緯度経度に変換
+            const coords = lines.map(line => {
+                line = line.trim();
+                // GoogleマップのURLから緯度経度を抽出
+                const gmapMatch = line.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+                if (gmapMatch) {
+                    return { lat: gmapMatch[1], lon: gmapMatch[2] };
+                }
+
+                // Plus Codeから緯度経度を変換
+                if (OpenLocationCode.isValid(line)) {
+                    const decoded = OpenLocationCode.decode(line);
+                    return { lat: decoded.latitudeCenter, lon: decoded.longitudeCenter };
+                }
+                
+                return null; // どちらでもない場合はnull
+            });
+            
+            // 変換できなかった行があるかチェック
+            const invalidLines = coords.filter(c => c === null);
+            if (invalidLines.length > 0) {
+                alert("解析できない行がありました。Googleマップのリンクか、有効なPlus Codeを入力してください。");
+                return;
+            }
+
+            // Yahoo!カーナビのURLスキームを組み立て
+            let yahooNaviUrl = "yjcarnavi://navi/select?point=current";
+            coords.forEach(coord => {
+                yahooNaviUrl += `&point=${coord.lat},${coord.lon}`;
+            });
+
+            // 結果を表示
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `<a href="${yahooNaviUrl}">Yahoo!カーナビで開く</a>`;
+            resultDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
