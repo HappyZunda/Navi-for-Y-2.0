@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ライブラリ読み込みテスト</title>
+    <script src="https://cdn.jsdelivr.net/npm/open-location-code@1.0.3/openlocationcode.min.js"></script>
+</head>
+<body>
+    <h1>診断結果</h1>
+    <p id="result" style="font-size: 24px; font-weight: bold;">テスト中...</p>
+
+    <script>
+        // ページが読み込まれてから0.5秒後にチェックを実行
+        setTimeout(function() {
+            const resultElement = document.getElementById('result');
+            // OpenLocationCode というオブジェクトが正しく読み込まれたか？
+            if (typeof OpenLocationCode === 'undefined') {
+                resultElement.textContent = '失敗：ライブラリを読み込めませんでした。';
+                resultElement.style.color = 'red';
+            } else {
+                resultElement.textContent = '成功：ライブラリは正常に読み込まれました！';
+                resultElement.style.color = 'green';
+            }
+        }, 500);
+    </script>
+</body>
+</html>
