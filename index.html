@@ -6,89 +6,33 @@
     <title>Yahoo!カーナビ リンク生成ツール</title>
     <script src="https://cdn.jsdelivr.net/npm/open-location-code@1.0.3/openlocationcode.min.js"></script>
     <style>
-        /* 見た目を整えるCSS */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #f0f2f5;
-            color: #1c1e21;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-        }
-        .container {
-            max-width: 600px;
-            width: 100%;
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        h1 {
-            font-size: 24px;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        textarea {
-            width: calc(100% - 20px);
-            height: 150px;
-            padding: 10px;
-            border: 1px solid #dddfe2;
-            border-radius: 6px;
-            font-size: 16px;
-            margin-bottom: 15px;
-        }
-        button {
-            width: 100%;
-            padding: 12px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        #result {
-            margin-top: 20px;
-        }
-        #result_label {
-            font-weight: bold;
-            margin-bottom: 5px;
-            display: block;
-        }
-        #result_link {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 8px;
-            font-size: 14px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background-color: #f8f8f8;
-        }
-        small {
-            display: block;
-            text-align: center;
-            margin-top: 15px;
-            color: #606770;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f0f2f5; color: #1c1e21; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { max-width: 600px; width: 100%; background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
+        h1 { font-size: 24px; text-align: center; margin-bottom: 20px; }
+        textarea { width: calc(100% - 22px); height: 120px; padding: 10px; border: 1px solid #dddfe2; border-radius: 6px; font-size: 16px; margin-bottom: 10px; }
+        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; }
+        #result { margin-top: 20px; }
+        #result_label { font-weight: bold; margin-bottom: 5px; display: block; }
+        #result_link { width: 100%; box-sizing: border-box; padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; background-color: #f8f8f8; }
+        small { display: block; text-align: center; margin-top: 15px; color: #606770; }
+        .ref-point { border: 1px solid #007bff; border-radius: 8px; padding: 10px; margin-top: 15px; background-color: #f0f8ff; }
+        .ref-point label { font-weight: bold; font-size: 14px; display: block; margin-bottom: 5px; }
+        .ref-point input { width: calc(50% - 15px); padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Yahoo!カーナビ<br>リンク生成ツール</h1>
-        <textarea id="locations" placeholder="GoogleマップのリンクやPlus Codeを1行に1つずつ入力してください。
+        <textarea id="locations" placeholder="GoogleマップのリンクやPlus Codeを1行に1つずつ入力してください。"></textarea>
+        
+        <div class="ref-point">
+            <label for="refLat">ショートコード用の基準点 (任意)</label>
+            <input type="text" id="refLat" placeholder="基準点の緯度 (例: 35.68)">
+            <input type="text" id="refLon" placeholder="基準点の経度 (例: 139.76)">
+        </div>
 
-例1 (経由地): 東京タワーのPlus Code
-MQPQ+CH 千代田区、東京都
+        <button onclick="generateLink()" style="margin-top: 15px;">ナビゲーションリンクを生成</button>
 
-例2 (目的地): 東京駅のGoogleマップリンク
-https://www.google.com/maps/place/東京タワー/@**35.6585805,139.7432442**,17z/"></textarea>
-        <button onclick="generateLink()">ナビゲーションリンクを生成</button>
         <div id="result" style="display: none;">
             <label id="result_label" for="result_link">生成されたリンク（クリックで全選択）：</label>
             <textarea id="result_link" readonly onclick="this.select();"></textarea>
@@ -97,11 +41,12 @@ https://www.google.com/maps/place/東京タワー/@**35.6585805,139.7432442**,17
     </div>
 
     <script>
-        // 機能の本体となるJavaScript
         function generateLink() {
             const inputText = document.getElementById('locations').value.trim();
-            const lines = inputText.split('\n').filter(line => line.trim() !== ''); // 空行を無視
-
+            const refLat = parseFloat(document.getElementById('refLat').value);
+            const refLon = parseFloat(document.getElementById('refLon').value);
+            
+            const lines = inputText.split('\n').filter(line => line.trim() !== '');
             if (lines.length === 0) {
                 alert("場所を入力してください。");
                 return;
@@ -109,13 +54,30 @@ https://www.google.com/maps/place/東京タワー/@**35.6585805,139.7432442**,17
 
             const coords = lines.map(line => {
                 line = line.trim();
+                
+                // 1. GoogleマップのURLか？
                 const gmapMatch = line.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
                 if (gmapMatch) {
                     return { lat: gmapMatch[1], lon: gmapMatch[2] };
                 }
+                
+                // 2. Plus Codeか？
                 try {
-                    if (OpenLocationCode.isValid(line)) {
+                    // 2a. フルコードか？
+                    if (OpenLocationCode.isFull(line)) {
                         const decoded = OpenLocationCode.decode(line);
+                        return { lat: decoded.latitudeCenter, lon: decoded.longitudeCenter };
+                    }
+                    // 2b. ショートコードか？
+                    const shortCodeMatch = line.match(/^[2-9CFGHJMPQRVWX]{4,}\+[2-9CFGHJMPQRVWX]{2,}/);
+                    if (shortCodeMatch) {
+                        const shortCode = shortCodeMatch[0];
+                        if (isNaN(refLat) || isNaN(refLon)) {
+                            alert("ショートコードを変換するには、有効な基準点の緯度と経度を入力してください。");
+                            return null; // この行の処理を中断
+                        }
+                        const recovered = OpenLocationCode.recoverNearest(shortCode, refLat, refLon);
+                        const decoded = OpenLocationCode.decode(recovered);
                         return { lat: decoded.latitudeCenter, lon: decoded.longitudeCenter };
                     }
                 } catch (e) {
@@ -124,31 +86,23 @@ https://www.google.com/maps/place/東京タワー/@**35.6585805,139.7432442**,17
                 return null;
             });
 
-            const invalidLines = coords.filter(c => c === null);
-            if (invalidLines.length > 0) {
-                alert("解析できない行がありました。Googleマップのリンクか、有効なPlus Codeを入力してください。");
+            // nullが含まれていたら（エラーがあったら）処理を中断
+            if (coords.some(c => c === null)) {
+                // アラートはすでに出ているので、ここでは何もしない
                 return;
             }
+            if (coords.length === 0) return; // 有効な座標が何もなかった場合
 
             let yahooNaviUrl = "yjcarnavi://navi/select?point=current";
             coords.forEach(coord => {
                 yahooNaviUrl += `&point=${coord.lat},${coord.lon}`;
             });
 
-            // --- ここからが変更部分です ---
             const resultDiv = document.getElementById('result');
             const resultLinkTextarea = document.getElementById('result_link');
-
-            // テキストエリアに生成したURLを設定
             resultLinkTextarea.value = yahooNaviUrl;
-
-            // 結果表示エリアを表示する
             resultDiv.style.display = 'block';
-            // --- ここまでが変更部分です ---
         }
     </script>
 </body>
 </html>
-
-
-
