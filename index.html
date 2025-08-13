@@ -112,14 +112,19 @@ https://www.google.com/maps/place/東京タワー/@**35.6585805,139.7432442**,17
                 }
 
                 // Plus Codeから緯度経度を変換
-                if (OpenLocationCode.isValid(line)) {
-                    const decoded = OpenLocationCode.decode(line);
-                    return { lat: decoded.latitudeCenter, lon: decoded.longitudeCenter };
+                try {
+                    if (OpenLocationCode.isValid(line)) {
+                        const decoded = OpenLocationCode.decode(line);
+                        return { lat: decoded.latitudeCenter, lon: decoded.longitudeCenter };
+                    }
+                } catch (e) {
+                     // ライブラリがエラーを投げるケースも考慮
+                    return null;
                 }
-                
+
                 return null; // どちらでもない場合はnull
             });
-            
+
             // 変換できなかった行があるかチェック
             const invalidLines = coords.filter(c => c === null);
             if (invalidLines.length > 0) {
