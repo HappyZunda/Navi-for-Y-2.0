@@ -15,21 +15,58 @@
         #result_label { font-weight: bold; margin-bottom: 5px; display: block; }
         #result_link { width: 100%; box-sizing: border-box; padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; background-color: #f8f8f8; }
         .memo-field { margin-top: 15px; }
+        
         .main-actions { display: flex; gap: 10px; margin-top: 15px; }
-        .main-actions button { flex: 1; padding: 12px; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; }
-        .generate-button { background-color: #673AB7; }
+        .main-actions button { flex: 1; padding: 12px; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; transition: opacity 0.2s; }
+        .main-actions button:hover { opacity: 0.9; }
+        .generate-button { background-color: #0d6efd; }
         .reset-button { background-color: #6c757d; }
-        #launchButton { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; padding: 12px; border-radius: 6px; background-color: #673AB7; color: white; text-decoration: none; text-align: center; font-size: 18px; font-weight: bold; }
+
+        #launchButton { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; padding: 12px; border-radius: 6px; background-color: #0d6efd; color: white; text-decoration: none; text-align: center; font-size: 18px; font-weight: bold; transition: opacity 0.2s; }
+        #launchButton:hover { opacity: 0.9; }
         .secondary-actions { display: flex; gap: 10px; margin-top: 10px; }
-        .secondary-actions button { flex: 1; padding: 10px; font-size: 16px; border-radius: 6px; border: none; color: white; cursor: pointer; }
-        .copy { background-color: #FFC107; color: #000; }
-        .share { background-color: #9575CD; }
+        .secondary-actions button { flex: 1; padding: 10px; font-size: 16px; border-radius: 6px; border: none; cursor: pointer; transition: opacity 0.2s; }
+        .secondary-actions button:hover { opacity: 0.9; }
+        .copy { background-color: #0dcaf0; color: #000; }
+        .share { background-color: #198754; color: white; }
+
+        /* --- ここからが新しい説明文のスタイルです --- */
+        .rules-box {
+            background-color: #e9f5ff;
+            border: 1px solid #b3d7ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .rules-box h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #0056b3;
+        }
+        .rules-box ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .rules-box li {
+            margin-bottom: 5px;
+        }
+        /* --- ここまでが新しい説明文のスタイルです --- */
+
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Yahoo!カーナビ<br>リンク生成ツール v6</h1>
+        <h1>Yahoo!カーナビ<br>リンク生成ツール</h1>
 
+        <div class="rules-box">
+            <h4>💡 入力のヒント</h4>
+            <ul>
+                <li><strong>Googleマップリンク:</strong> URLに緯度経度（例: <code>@35.6,139.7</code>）が含まれる形式にのみ対応しています。</li>
+                <li><strong>短縮URL:</strong> <code>goo.gl/maps/</code> 等の短いリンクは、一度ブラウザで開いてから、表示された長いURLをコピーして貼り付けてください。</li>
+                <li><strong>Plus Code:</strong> <code>8Q7XMP56+3H</code> のような、地名を含まない「フルコード」形式で入力してください。</li>
+            </ul>
+        </div>
         <div id="form-group">
             <label for="destination">目的地 (必須)</label>
             <input type="text" id="destination" placeholder="リンク または Plus Code (フルコード)">
@@ -61,6 +98,7 @@
     </div>
 
     <script>
+        // JavaScript部分は変更ありません
         function resetForm() {
             document.getElementById('destination').value = '';
             document.getElementById('waypoints').value = '';
@@ -110,12 +148,9 @@
 
             const copyButton = document.getElementById('copyButton');
             copyButton.textContent = 'リンクをコピー';
-
-            // --- ここからが変更部分です ---
             copyButton.onclick = function() {
                 const shareMemo = document.getElementById('shareMemo').value.trim();
                 let textToCopy = yahooNaviUrl;
-                // メモがあれば、メモ内容と改行をリンクの前に追加
                 if (shareMemo) {
                     textToCopy = shareMemo + '\n' + yahooNaviUrl;
                 }
@@ -124,7 +159,6 @@
                     setTimeout(() => { copyButton.textContent = 'リンクをコピー'; }, 2000);
                 }, () => { alert('コピーに失敗しました。'); });
             };
-            // --- ここまでが変更部分です ---
             
             const shareButton = document.getElementById('shareButton');
             if (navigator.share) {
@@ -148,7 +182,3 @@
     </script>
 </body>
 </html>
-
-
-
-
