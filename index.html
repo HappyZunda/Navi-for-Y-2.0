@@ -11,21 +11,24 @@
         h1 { font-size: 24px; text-align: center; margin-bottom: 20px; }
         label { font-weight: bold; font-size: 16px; display: block; margin-bottom: 5px; }
         input[type="text"], textarea { width: calc(100% - 22px); padding: 10px; border: 1px solid #dddfe2; border-radius: 6px; font-size: 16px; margin-bottom: 15px; }
-        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; }
         #result { margin-top: 20px; }
         #result_label { font-weight: bold; margin-bottom: 5px; display: block; }
         #result_link { width: 100%; box-sizing: border-box; padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; background-color: #f8f8f8; }
-        .action-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
-        .action-buttons button, .action-buttons a { font-size: 16px; padding: 10px; border-radius: 6px; text-decoration: none; color: white; text-align: center; border: none; cursor: pointer; flex-grow: 1; }
-        .action-buttons .copy { background-color: #17a2b8; }
-        .action-buttons .launch { background-color: #007bff; }
-        .action-buttons .share { background-color: #28a745; }
         .memo-field { margin-top: 15px; }
+        .main-actions { display: flex; gap: 10px; margin-top: 15px; }
+        .main-actions button { flex: 1; padding: 12px; color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; }
+        .generate-button { background-color: #673AB7; }
+        .reset-button { background-color: #6c757d; }
+        #launchButton { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; padding: 12px; border-radius: 6px; background-color: #673AB7; color: white; text-decoration: none; text-align: center; font-size: 18px; font-weight: bold; }
+        .secondary-actions { display: flex; gap: 10px; margin-top: 10px; }
+        .secondary-actions button { flex: 1; padding: 10px; font-size: 16px; border-radius: 6px; border: none; color: white; cursor: pointer; }
+        .copy { background-color: #FFC107; color: #000; }
+        .share { background-color: #9575CD; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Yahoo!カーナビ<br>リンク生成ツールv5</h1>
+        <h1>Yahoo!カーナビ<br>リンク生成ツール</h1>
 
         <div id="form-group">
             <label for="destination">目的地 (必須)</label>
@@ -35,7 +38,10 @@
             <textarea id="waypoints" rows="3" placeholder="1行に1つずつ入力"></textarea>
         </div>
         
-        <button onclick="generateLink()">ナビゲーションリンクを生成</button>
+        <div class="main-actions">
+            <button class="reset-button" onclick="resetForm()">リセット</button>
+            <button class="generate-button" onclick="generateLink()">リンクを生成</button>
+        </div>
 
         <div id="result" style="display: none;">
             <label id="result_label" for="result_link">生成されたリンク：</label>
@@ -46,16 +52,22 @@
                 <input type="text" id="shareMemo" placeholder="例：〇〇時に集合！">
             </div>
 
-            <div class="action-buttons">
-                <a id="launchButton" class="launch" href="#" style="display: none;">アプリを起動</a>
+            <a id="launchButton" href="#" style="display: none;">アプリを起動</a>
+            <div class="secondary-actions">
                 <button id="copyButton" class="copy">リンクをコピー</button>
                 <button id="shareButton" class="share" style="display: none;">共有する</button>
             </div>
-            </div>
+        </div>
     </div>
 
     <script>
-        // parseLocation関数の内容は変更なし
+        function resetForm() {
+            document.getElementById('destination').value = '';
+            document.getElementById('waypoints').value = '';
+            document.getElementById('shareMemo').value = '';
+            document.getElementById('result').style.display = 'none';
+        }
+
         function parseLocation(line) {
             line = line.trim();
             if (!line) return null;
@@ -72,7 +84,6 @@
         }
 
         function generateLink() {
-            // ... (これまでの緯度経度を変換するコードは変更なし) ...
             const destinationText = document.getElementById('destination').value.trim();
             const waypointsText = document.getElementById('waypoints').value.trim();
             if (!destinationText) { alert("目的地を必ず入力してください。"); return; }
@@ -88,30 +99,36 @@
             let yahooNaviUrl = "yjcarnavi://navi/select?point=current";
             coords.forEach(coord => { yahooNaviUrl += `&point=${coord.lat},${coord.lon}`; });
 
-            // --- ここからが変更部分です ---
-
             const resultDiv = document.getElementById('result');
             const resultLinkTextarea = document.getElementById('result_link');
             resultLinkTextarea.value = yahooNaviUrl;
             resultDiv.style.display = 'block';
             
-            // 「アプリを起動」ボタンの設定
             const launchButton = document.getElementById('launchButton');
-            launchButton.href = yahooNaviUrl; // 生成したリンクをhrefに設定
-            launchButton.style.display = 'inline-block'; // ボタンを表示
+            launchButton.href = yahooNaviUrl;
+            launchButton.style.display = 'block';
 
             const copyButton = document.getElementById('copyButton');
             copyButton.textContent = 'リンクをコピー';
+
+            // --- ここからが変更部分です ---
             copyButton.onclick = function() {
-                navigator.clipboard.writeText(yahooNaviUrl).then(() => {
+                const shareMemo = document.getElementById('shareMemo').value.trim();
+                let textToCopy = yahooNaviUrl;
+                // メモがあれば、メモ内容と改行をリンクの前に追加
+                if (shareMemo) {
+                    textToCopy = shareMemo + '\n' + yahooNaviUrl;
+                }
+                navigator.clipboard.writeText(textToCopy).then(() => {
                     copyButton.textContent = 'コピーしました！';
                     setTimeout(() => { copyButton.textContent = 'リンクをコピー'; }, 2000);
                 }, () => { alert('コピーに失敗しました。'); });
             };
+            // --- ここまでが変更部分です ---
             
             const shareButton = document.getElementById('shareButton');
             if (navigator.share) {
-                shareButton.style.display = 'inline-block';
+                shareButton.style.display = 'block';
                 shareButton.onclick = function() {
                     const shareMemo = document.getElementById('shareMemo').value.trim();
                     let shareText = yahooNaviUrl;
@@ -131,7 +148,6 @@
     </script>
 </body>
 </html>
-
 
 
 
