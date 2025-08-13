@@ -18,11 +18,13 @@
         .ref-point { border: 1px solid #007bff; border-radius: 8px; padding: 10px; margin-top: 15px; background-color: #f0f8ff; }
         .ref-point label { font-weight: bold; font-size: 14px; display: block; margin-bottom: 5px; }
         .ref-point input { width: calc(50% - 15px); padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .action-buttons { display: flex; gap: 10px; margin-top: 10px; }
+        .action-buttons button { font-size: 16px; padding: 10px; background-color: #28a745; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Yahoo!カーナビ<br>リンク生成ツールv3</h1>
+        <h1>Yahoo!カーナビ<br>リンク生成ツール</h1>
         <textarea id="locations" placeholder="GoogleマップのリンクやPlus Codeを1行に1つずつ入力してください。"></textarea>
         
         <div class="ref-point">
@@ -34,74 +36,80 @@
         <button onclick="generateLink()" style="margin-top: 15px;">ナビゲーションリンクを生成</button>
 
         <div id="result" style="display: none;">
-            <label id="result_label" for="result_link">生成されたリンク（クリックで全選択）：</label>
-            <textarea id="result_link" readonly onclick="this.select();"></textarea>
-        </div>
+            <label id="result_label" for="result_link">生成されたリンク：</label>
+            <textarea id="result_link" readonly></textarea>
+            <div class="action-buttons">
+                <button id="copyButton">リンクをコピー</button>
+                <button id="shareButton" style="display: none;">共有する</button>
+            </div>
+            </div>
         <small>最終行が目的地になります。</small>
     </div>
 
     <script>
         function generateLink() {
+            // ... (これまでの緯度経度を変換するコードは変更なし) ...
             const inputText = document.getElementById('locations').value.trim();
             const refLat = parseFloat(document.getElementById('refLat').value);
             const refLon = parseFloat(document.getElementById('refLon').value);
-            
             const lines = inputText.split('\n').filter(line => line.trim() !== '');
-            if (lines.length === 0) {
-                alert("場所を入力してください。");
-                return;
-            }
-
+            if (lines.length === 0) { alert("場所を入力してください。"); return; }
             const coords = lines.map(line => {
                 line = line.trim();
-                
-                // 1. GoogleマップのURLか？
                 const gmapMatch = line.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-                if (gmapMatch) {
-                    return { lat: gmapMatch[1], lon: gmapMatch[2] };
-                }
-                
-                // 2. Plus Codeか？
+                if (gmapMatch) { return { lat: gmapMatch[1], lon: gmapMatch[2] }; }
                 try {
-                    // 2a. フルコードか？
-                    if (OpenLocationCode.isFull(line)) {
-                        const decoded = OpenLocationCode.decode(line);
-                        return { lat: decoded.latitudeCenter, lon: decoded.longitudeCenter };
-                    }
-                    // 2b. ショートコードか？
+                    if (OpenLocationCode.isFull(line)) { const decoded = OpenLocationCode.decode(line); return { lat: decoded.latitudeCenter, lon: decoded.longitudeCenter }; }
                     const shortCodeMatch = line.match(/^[2-9CFGHJMPQRVWX]{4,}\+[2-9CFGHJMPQRVWX]{2,}/);
                     if (shortCodeMatch) {
                         const shortCode = shortCodeMatch[0];
-                        if (isNaN(refLat) || isNaN(refLon)) {
-                            alert("ショートコードを変換するには、有効な基準点の緯度と経度を入力してください。");
-                            return null; // この行の処理を中断
-                        }
+                        if (isNaN(refLat) || isNaN(refLon)) { alert("ショートコードを変換するには、有効な基準点の緯度と経度を入力してください。"); return null; }
                         const recovered = OpenLocationCode.recoverNearest(shortCode, refLat, refLon);
                         const decoded = OpenLocationCode.decode(recovered);
                         return { lat: decoded.latitudeCenter, lon: decoded.longitudeCenter };
                     }
-                } catch (e) {
-                    return null;
-                }
+                } catch (e) { return null; }
                 return null;
             });
-
-            // nullが含まれていたら（エラーがあったら）処理を中断
-            if (coords.some(c => c === null)) {
-                // アラートはすでに出ているので、ここでは何もしない
-                return;
-            }
-            if (coords.length === 0) return; // 有効な座標が何もなかった場合
-
+            if (coords.some(c => c === null)) { return; }
+            if (coords.length === 0) return;
             let yahooNaviUrl = "yjcarnavi://navi/select?point=current";
-            coords.forEach(coord => {
-                yahooNaviUrl += `&point=${coord.lat},${coord.lon}`;
-            });
+            coords.forEach(coord => { yahooNaviUrl += `&point=${coord.lat},${coord.lon}`; });
 
+            // --- ここからが変更部分です ---
+
+            // 1. 結果表示エリアの準備
             const resultDiv = document.getElementById('result');
             const resultLinkTextarea = document.getElementById('result_link');
-            resultLinkTextarea.value = yahooNaviUrl;
-            resultDiv.style.display = 'block';
+            resultLinkTextarea.value = yahooNaviUrl; // テキストエリアにURLを設定
+            resultDiv.style.display = 'block'; // 結果エリア全体を表示
+
+            // 2. 「コピー」ボタンの設定
+            const copyButton = document.getElementById('copyButton');
+            copyButton.textContent = 'リンクをコピー'; // ボタンの文字を初期状態に戻す
+            copyButton.onclick = function() {
+                navigator.clipboard.writeText(yahooNaviUrl).then(function() {
+                    copyButton.textContent = 'コピーしました！'; // 成功したら文字を変更
+                    setTimeout(() => { copyButton.textContent = 'リンクをコピー'; }, 2000); // 2秒後に戻す
+                }, function() {
+                    alert('コピーに失敗しました。'); // 失敗した場合
+                });
+            };
+
+            // 3. 「共有」ボタンの設定 (スマホなど対応ブラウザのみ)
+            const shareButton = document.getElementById('shareButton');
+            if (navigator.share) {
+                shareButton.style.display = 'block'; // 対応していればボタンを表示
+                shareButton.onclick = function() {
+                    navigator.share({
+                        title: 'Yahoo!カーナビ 経路リンク',
+                        text: yahooNaviUrl,
+                    })
+                    .catch(error => console.log('共有がキャンセルされました', error));
+                };
+            } else {
+                shareButton.style.display = 'none'; // 非対応ならボタンを隠す
+            }
         }
     </script>
 </body>
